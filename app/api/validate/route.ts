@@ -1,11 +1,47 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { promises as dns } from 'dns';
+import { OAuth2Server } from '@/lib/oauth2';
 
 const emailSchema = z.string().email({ message: "Invalid email format (RFC 5322)" });
 
 export async function POST(request: Request) {
-  // API Key check will be added in Phase 4
+  // OAuth 2.0 Token Validation
+  const authHeader = request.headers.get('Authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json(
+      { 
+        error: 'invalid_token',
+        error_description: 'Bearer token required' 
+      }, 
+      { status: 401 }
+    );
+  }
+
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  const tokenValidation = await OAuth2Server.validateAccessToken(token);
+
+  if (!tokenValidation.valid) {
+    return NextResponse.json(
+      { 
+        error: 'invalid_token',
+        error_description: tokenValidation.error || 'Invalid token' 
+      }, 
+      { status: 401 }
+    );
+  }
+
+  // Check if user has required scope
+  if (!tokenValidation.scopes?.includes('email:validate')) {
+    return NextResponse.json(
+      { 
+        error: 'insufficient_scope',
+        error_description: 'email:validate scope required' 
+      }, 
+      { status: 403 }
+    );
+  }
 
   const body = await request.json();
   const email = body.email;

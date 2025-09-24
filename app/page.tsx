@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Toaster, toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LogIn, LogOut } from 'lucide-react';
+import { useOAuth } from '@/components/oauth-provider';
 
 // Define a type for the API response
 type ValidationResult = {
@@ -22,10 +23,16 @@ export default function HomePage() {
   const [email, setEmail] = useState('');
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { accessToken, isAuthenticated, isLoading: oauthLoading, login, logout } = useOAuth();
 
   const handleValidation = async () => {
     if (!email.trim()) {
       toast.error("Please enter an email address");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      toast.error("Please log in to validate emails");
       return;
     }
 
@@ -37,30 +44,44 @@ export default function HomePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
-      setResult(data);
+      const data: ValidationResult = await response.json();
 
-      if (data.success) {
-        toast.success("Email validation successful!");
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expired. Please log in again.');
+          logout();
+        } else if (response.status === 403) {
+          toast.error('Insufficient permissions to validate emails.');
+        } else {
+          toast.error(data.message || 'An unknown error occurred.');
+        }
       } else {
-        toast.error(`Validation failed: ${data.message}`);
+        toast.success('Validation complete!');
       }
+      setResult(data);
     } catch (error) {
-      console.error('Validation error:', error);
-      toast.error("An error occurred during validation");
-      setResult({
-        success: false,
-        stage: 'syntax',
-        message: 'Network error occurred during validation'
-      });
+      console.error('Validation failed:', error);
+      toast.error('Failed to connect to the server. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (oauthLoading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-50">
@@ -68,7 +89,25 @@ export default function HomePage() {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight">Email Check</h1>
-          <p className="text-gray-500 mt-2">Enter an email address to validate it.</p>
+          <p className="text-gray-500 mt-2">
+            {isAuthenticated 
+              ? 'Enter an email address to validate it.' 
+              : 'Please log in to validate email addresses.'
+            }
+          </p>
+          <div className="mt-4">
+            {isAuthenticated ? (
+              <Button onClick={logout} variant="outline" size="sm">
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            ) : (
+              <Button onClick={login} size="sm">
+                <LogIn className="h-4 w-4 mr-2" />
+                Login with OAuth 2.0
+              </Button>
+            )}
+          </div>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -80,7 +119,7 @@ export default function HomePage() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
               />
-              <Button onClick={handleValidation} disabled={isLoading}>
+              <Button onClick={handleValidation} disabled={isLoading || !isAuthenticated}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Validate'}
               </Button>
             </div>
