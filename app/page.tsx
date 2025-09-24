@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Toaster, toast } from 'sonner';
-import { Loader2, LogIn, LogOut } from 'lucide-react';
+import { Loader2, LogIn, LogOut, Users } from 'lucide-react';
 import { useOAuth } from '@/components/oauth-provider';
 
 // Define a type for the API response
@@ -23,7 +23,7 @@ export default function HomePage() {
   const [email, setEmail] = useState('');
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { accessToken, isAuthenticated, isLoading: oauthLoading, login, logout } = useOAuth();
+  const { accessToken, isAuthenticated, isLoading: oauthLoading, login, loginWithSalesforce, logout, userInfo } = useOAuth();
 
   const handleValidation = async () => {
     if (!email.trim()) {
@@ -91,21 +91,40 @@ export default function HomePage() {
           <h1 className="text-3xl font-bold tracking-tight">Email Check</h1>
           <p className="text-gray-500 mt-2">
             {isAuthenticated 
-              ? 'Enter an email address to validate it.' 
+              ? `Welcome${userInfo?.name ? `, ${userInfo.name}` : ''}! Enter an email address to validate it.` 
               : 'Please log in to validate email addresses.'
             }
           </p>
-          <div className="mt-4">
+          {isAuthenticated && userInfo?.isSalesforceUser && (
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <Users className="h-4 w-4 inline mr-1" />
+                Authenticated via Salesforce
+                {userInfo.organizationId && (
+                  <span className="block text-xs text-blue-600 mt-1">
+                    Org ID: {userInfo.organizationId}
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+          <div className="mt-4 space-y-2">
             {isAuthenticated ? (
               <Button onClick={logout} variant="outline" size="sm">
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             ) : (
-              <Button onClick={login} size="sm">
-                <LogIn className="h-4 w-4 mr-2" />
-                Login with OAuth 2.0
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={login} size="sm" className="w-full">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login with OAuth 2.0
+                </Button>
+                <Button onClick={loginWithSalesforce} variant="outline" size="sm" className="w-full">
+                  <Users className="h-4 w-4 mr-2" />
+                  Login with Salesforce
+                </Button>
+              </div>
             )}
           </div>
         </div>

@@ -4,7 +4,7 @@ import { OAuth2Server } from '@/lib/oauth2';
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const token = body.token;
-  const tokenTypeHint = body.token_type_hint; // 'access_token' or 'refresh_token'
+  // const tokenTypeHint = body.token_type_hint; // 'access_token' or 'refresh_token'
 
   if (!token) {
     return NextResponse.json(

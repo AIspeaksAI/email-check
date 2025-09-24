@@ -4,7 +4,7 @@ import { OAuth2Server } from '@/lib/oauth2';
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get('content-type');
   
-  let body: any;
+  let body: Record<string, unknown>;
   if (contentType?.includes('application/json')) {
     body = await request.json();
   } else {
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       }
 
       const tokenResponse = await OAuth2Server.exchangeCodeForTokens(
-        code,
-        clientId,
-        clientSecret,
-        redirectUri
+        code as string,
+        clientId as string,
+        clientSecret as string,
+        redirectUri as string
       );
 
       return NextResponse.json(tokenResponse);
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const tokenResponse = await OAuth2Server.refreshAccessToken(refreshToken);
+      const tokenResponse = await OAuth2Server.refreshAccessToken(refreshToken as string);
       return NextResponse.json(tokenResponse);
 
     } else {
@@ -64,9 +64,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'invalid_request', error_description: error.message },
+      { error: 'invalid_request', error_description: errorMessage },
       { status: 400 }
     );
   }

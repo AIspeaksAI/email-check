@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Email Validation Settings</label>
+    <pluralLabel>Email Validation Settings</pluralLabel>
+    <nameField>
+        <displayFormat>EVS-{0000000000}</displayFormat>
+        <label>Email Validation Setting Name</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Settings for email validation functionality</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableChangeDataCapture>false</enableChangeDataCapture>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>false</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <externalSharingModel>Private</externalSharingModel>
+    <fields>
+        <fullName>Enable_Email_Validation__c</fullName>
+        <description>Enable or disable automatic email validation</description>
+        <label>Enable Email Validation</label>
+        <type>Checkbox</type>
+        <defaultValue>true</defaultValue>
+    </fields>
+    <fields>
+        <fullName>API_Base_URL__c</fullName>
+        <description>Base URL for the email validation API</description>
+        <label>API Base URL</label>
+        <length>255</length>
+        <type>Url</type>
+    </fields>
+    <fields>
+        <fullName>Client_ID__c</fullName>
+        <description>Salesforce Connected App Client ID</description>
+        <label>Client ID</label>
+        <length>255</length>
+        <type>Text</type>
+    </fields>
+    <fields>
+        <fullName>Timeout_Seconds__c</fullName>
+        <description>API call timeout in seconds</description>
+        <label>Timeout (Seconds)</label>
+        <type>Number</type>
+        <precision>3</precision>
+        <scale>0</scale>
+        <defaultValue>30</defaultValue>
+    </fields>
+    <fields>
+        <fullName>Batch_Size__c</fullName>
+        <description>Number of emails to validate in a single batch</description>
+        <label>Batch Size</label>
+        <type>Number</type>
+        <precision>3</precision>
+        <scale>0</scale>
+        <defaultValue>10</defaultValue>
+    </fields>
+    <fields>
+        <fullName>Retry_Attempts__c</fullName>
+        <description>Number of retry attempts for failed validations</description>
+        <label>Retry Attempts</label>
+        <type>Number</type>
+        <precision>2</precision>
+        <scale>0</scale>
+        <defaultValue>3</defaultValue>
+    </fields>
+    <label>Email Validation Settings</label>
+    <name>EmailValidationSettings__c</name>
+    <pluralLabel>Email Validation Settings</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-  const tokenValidation = await OAuth2Server.validateAccessToken(token);
+  const tokenValidation = await OAuth2Server.validateAccessTokenEnhanced(token);
 
   if (!tokenValidation.valid) {
     return NextResponse.json(
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   // Initialize validation results
   const validationResults = {
     syntax: { passed: false, message: '' },
-    mxRecord: { passed: false, message: '', records: [] }
+    mxRecord: { passed: false, message: '', records: [] as string[] }
   };
 
   // 1. Syntax Validation
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     
-    const sortedRecords = mxRecords.sort((a, b) => a.priority - b.priority);
+    // const sortedRecords = mxRecords.sort((a, b) => a.priority - b.priority);
     validationResults.mxRecord = {
       passed: true,
       message: `Found ${mxRecords.length} MX record(s) for domain`,
@@ -103,9 +103,16 @@ export async function POST(request: Request) {
       success: true,
       stage: 'mx_record',
       message: 'Email address is valid (syntax and domain checks passed).',
-      validationResults
+      validationResults,
+      authInfo: {
+        userId: tokenValidation.userId,
+        clientId: tokenValidation.clientId,
+        isSalesforceJWT: tokenValidation.isSalesforceJWT,
+        salesforceUserId: tokenValidation.salesforceUserId,
+        salesforceOrgId: tokenValidation.salesforceOrgId
+      }
     });
-  } catch (dnsError) {
+  } catch {
     validationResults.mxRecord = {
       passed: false,
       message: 'Domain is invalid or could not be resolved',

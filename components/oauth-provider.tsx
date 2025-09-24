@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 
 interface OAuthContextType {
   accessToken: string | null;
@@ -8,8 +8,16 @@ interface OAuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: () => void;
+  loginWithSalesforce: () => void;
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
+  userInfo: {
+    id?: string;
+    email?: string;
+    name?: string;
+    organizationId?: string;
+    isSalesforceUser?: boolean;
+  } | null;
 }
 
 const OAuthContext = createContext<OAuthContextType | undefined>(undefined);
@@ -23,25 +31,80 @@ const CLIENT_SECRET = 'web-client-secret';
 const REDIRECT_URI = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
 const SCOPE = 'email:validate';
 
+// Salesforce configuration
+const SALESFORCE_CLIENT_ID = process.env.NEXT_PUBLIC_SALESFORCE_CLIENT_ID;
+const SALESFORCE_REDIRECT_URI = typeof window !== 'undefined' ? `${window.location.origin}/oauth/salesforce/callback` : 'http://localhost:3001/oauth/salesforce/callback';
+const SALESFORCE_SCOPE = 'email:validate api';
+
 export function OAuthProvider({ children }: OAuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState<{
+    id?: string;
+    email?: string;
+    name?: string;
+    organizationId?: string;
+    isSalesforceUser?: boolean;
+  } | null>(null);
 
   const isAuthenticated = !!accessToken;
 
-  // Initialize OAuth flow on component mount
-  useEffect(() => {
-    initializeOAuth();
-  }, []);
+  const refreshAccessToken = useCallback(async (refreshTokenToUse?: string): Promise<boolean> => {
+    try {
+      const tokenToUse = refreshTokenToUse || refreshToken;
+      if (!tokenToUse) return false;
 
-  const initializeOAuth = async () => {
+      const response = await fetch('/api/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          grant_type: 'refresh_token',
+          refresh_token: tokenToUse,
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      const tokenData = await response.json();
+      
+      setAccessToken(tokenData.access_token);
+      setRefreshToken(tokenData.refresh_token);
+      
+      // Update stored tokens
+      localStorage.setItem('oauth_access_token', tokenData.access_token);
+      localStorage.setItem('oauth_refresh_token', tokenData.refresh_token);
+      
+      return true;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
+    }
+  }, [refreshToken]);
+
+  const initializeOAuth = useCallback(async () => {
     try {
       // Check for stored tokens
       const storedAccessToken = localStorage.getItem('oauth_access_token');
       const storedRefreshToken = localStorage.getItem('oauth_refresh_token');
+      const storedUserInfo = localStorage.getItem('oauth_user_info');
 
       if (storedAccessToken && storedRefreshToken) {
+        // Restore user info if available
+        if (storedUserInfo) {
+          try {
+            setUserInfo(JSON.parse(storedUserInfo));
+          } catch (error) {
+            console.error('Error parsing stored user info:', error);
+          }
+        }
+
         // Verify if access token is still valid
         const isValid = await validateAccessToken(storedAccessToken);
         
@@ -55,16 +118,23 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
             // Both tokens are invalid, clear storage
             localStorage.removeItem('oauth_access_token');
             localStorage.removeItem('oauth_refresh_token');
+            localStorage.removeItem('oauth_user_info');
+            setUserInfo(null);
           }
         }
       } else {
         // Check for authorization code in URL
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
-        const state = urlParams.get('state');
+        // const state = urlParams.get('state');
 
         if (code) {
-          await exchangeCodeForTokens(code);
+          // Check if this is a Salesforce callback
+          if (window.location.pathname.includes('/oauth/salesforce/callback')) {
+            await exchangeSalesforceCodeForTokens(code);
+          } else {
+            await exchangeCodeForTokens(code);
+          }
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -74,7 +144,12 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [refreshAccessToken]);
+
+  // Initialize OAuth flow on component mount
+  useEffect(() => {
+    initializeOAuth();
+  }, [initializeOAuth]);
 
   const validateAccessToken = async (token: string): Promise<boolean> => {
     try {
@@ -118,6 +193,24 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
       setAccessToken(tokenData.access_token);
       setRefreshToken(tokenData.refresh_token);
       
+      // Store user info if available (for Salesforce users)
+      if (tokenData.salesforce_user) {
+        setUserInfo({
+          id: tokenData.salesforce_user.id,
+          email: tokenData.salesforce_user.email,
+          name: tokenData.salesforce_user.name,
+          organizationId: tokenData.salesforce_user.organization_id,
+          isSalesforceUser: true
+        });
+        localStorage.setItem('oauth_user_info', JSON.stringify({
+          id: tokenData.salesforce_user.id,
+          email: tokenData.salesforce_user.email,
+          name: tokenData.salesforce_user.name,
+          organizationId: tokenData.salesforce_user.organization_id,
+          isSalesforceUser: true
+        }));
+      }
+      
       // Store tokens
       localStorage.setItem('oauth_access_token', tokenData.access_token);
       localStorage.setItem('oauth_refresh_token', tokenData.refresh_token);
@@ -127,26 +220,24 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
     }
   };
 
-  const refreshAccessToken = async (refreshTokenToUse?: string): Promise<boolean> => {
+  const exchangeSalesforceCodeForTokens = async (code: string) => {
     try {
-      const tokenToUse = refreshTokenToUse || refreshToken;
-      if (!tokenToUse) return false;
-
-      const response = await fetch('/api/oauth/token', {
+      const response = await fetch('/api/oauth/salesforce/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          grant_type: 'refresh_token',
-          refresh_token: tokenToUse,
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET
+          grant_type: 'authorization_code',
+          code,
+          client_id: SALESFORCE_CLIENT_ID,
+          client_secret: process.env.NEXT_PUBLIC_SALESFORCE_CLIENT_SECRET,
+          redirect_uri: SALESFORCE_REDIRECT_URI
         })
       });
 
       if (!response.ok) {
-        throw new Error('Token refresh failed');
+        throw new Error('Salesforce token exchange failed');
       }
 
       const tokenData = await response.json();
@@ -154,14 +245,30 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
       setAccessToken(tokenData.access_token);
       setRefreshToken(tokenData.refresh_token);
       
-      // Update stored tokens
+      // Store user info if available (for Salesforce users)
+      if (tokenData.salesforce_user) {
+        setUserInfo({
+          id: tokenData.salesforce_user.id,
+          email: tokenData.salesforce_user.email,
+          name: tokenData.salesforce_user.name,
+          organizationId: tokenData.salesforce_user.organization_id,
+          isSalesforceUser: true
+        });
+        localStorage.setItem('oauth_user_info', JSON.stringify({
+          id: tokenData.salesforce_user.id,
+          email: tokenData.salesforce_user.email,
+          name: tokenData.salesforce_user.name,
+          organizationId: tokenData.salesforce_user.organization_id,
+          isSalesforceUser: true
+        }));
+      }
+      
+      // Store tokens
       localStorage.setItem('oauth_access_token', tokenData.access_token);
       localStorage.setItem('oauth_refresh_token', tokenData.refresh_token);
-      
-      return true;
     } catch (error) {
-      console.error('Token refresh error:', error);
-      return false;
+      console.error('Salesforce token exchange error:', error);
+      throw error;
     }
   };
 
@@ -171,6 +278,23 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
       scope: SCOPE,
+      state: Math.random().toString(36).substring(7)
+    })}`;
+    
+    window.location.href = authUrl;
+  };
+
+  const loginWithSalesforce = () => {
+    if (!SALESFORCE_CLIENT_ID) {
+      console.error('Salesforce client ID not configured');
+      return;
+    }
+
+    const authUrl = `/api/oauth/salesforce/authorize?${new URLSearchParams({
+      response_type: 'code',
+      client_id: SALESFORCE_CLIENT_ID,
+      redirect_uri: SALESFORCE_REDIRECT_URI,
+      scope: SALESFORCE_SCOPE,
       state: Math.random().toString(36).substring(7)
     })}`;
     
@@ -211,8 +335,10 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
       // Clear local state and storage
       setAccessToken(null);
       setRefreshToken(null);
+      setUserInfo(null);
       localStorage.removeItem('oauth_access_token');
       localStorage.removeItem('oauth_refresh_token');
+      localStorage.removeItem('oauth_user_info');
     }
   };
 
@@ -222,8 +348,10 @@ export function OAuthProvider({ children }: OAuthProviderProps) {
     isAuthenticated,
     isLoading,
     login,
+    loginWithSalesforce,
     logout,
-    refreshAccessToken: () => refreshAccessToken()
+    refreshAccessToken: () => refreshAccessToken(),
+    userInfo
   };
 
   return (
