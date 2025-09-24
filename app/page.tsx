@@ -10,12 +10,11 @@ import { Loader2 } from 'lucide-react';
 // Define a type for the API response
 type ValidationResult = {
   success: boolean;
-  stage: 'syntax' | 'mx_record' | 'smtp';
+  stage: 'syntax' | 'mx_record';
   message: string;
   validationResults?: {
     syntax: { passed: boolean; message: string };
     mxRecord: { passed: boolean; message: string; records: string[] };
-    smtp: { passed: boolean; message: string };
   };
 };
 
@@ -137,18 +136,6 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* SMTP Validation */}
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      result.validationResults.smtp.passed ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                    }`}>
-                      {result.validationResults.smtp.passed ? '✓' : '✗'}
-                    </div>
-                    <div className="flex-1">
-                      <h5 className="font-medium">SMTP Validation</h5>
-                      <p className="text-sm text-gray-600">{result.validationResults.smtp.message}</p>
-                    </div>
-                  </div>
                 </div>
               )}
             </CardContent>

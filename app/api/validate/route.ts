@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { promises as dns } from 'dns';
-import { SMTPClient } from 'smtp-client';
 
 const emailSchema = z.string().email({ message: "Invalid email format (RFC 5322)" });
 
@@ -14,8 +13,7 @@ export async function POST(request: Request) {
   // Initialize validation results
   const validationResults = {
     syntax: { passed: false, message: '' },
-    mxRecord: { passed: false, message: '', records: [] },
-    smtp: { passed: false, message: '' }
+    mxRecord: { passed: false, message: '', records: [] }
   };
 
   // 1. Syntax Validation
@@ -64,78 +62,13 @@ export async function POST(request: Request) {
       records: mxRecords.map(r => r.exchange)
     };
 
-    // 3. SMTP Mailbox Verification
-    try {
-      const client = new SMTPClient({
-        host: sortedRecords[0].exchange,
-        port: 25,
-        secure: false,
-        timeout: 10000, // 10 second timeout
-      });
-      
-      await client.connect();
-      await client.helo('email-validator.local');
-      await client.mail('validator@email-validator.local');
-      const rcptResponse = await client.rcpt(email);
-      await client.quit();
-
-      if (rcptResponse.code === 250) {
-        validationResults.smtp = {
-          passed: true,
-          message: 'Mailbox exists and accepts mail'
-        };
-        return NextResponse.json({
-          success: true,
-          stage: 'smtp',
-          message: 'Email address is valid and exists.',
-          validationResults
-        });
-      } else {
-        validationResults.smtp = {
-          passed: false,
-          message: `Mailbox does not exist (SMTP RCPT TO failed with code ${rcptResponse.code})`
-        };
-        return NextResponse.json({ 
-          success: false, 
-          stage: 'smtp', 
-          message: `Mailbox does not exist (SMTP RCPT TO failed with code ${rcptResponse.code}).`,
-          validationResults
-        }, { status: 400 });
-      }
-    } catch (smtpError) {
-      console.error('SMTP Error:', smtpError);
-      
-      // For Gmail and other major providers, we'll be more lenient
-      const isGmail = domain.includes('gmail.com');
-      const isOutlook = domain.includes('outlook.com') || domain.includes('hotmail.com');
-      const isYahoo = domain.includes('yahoo.com');
-      
-      if (isGmail || isOutlook || isYahoo) {
-        // For major providers, if we have MX records, assume the email is valid
-        // since they often block SMTP verification attempts
-        validationResults.smtp = {
-          passed: true,
-          message: 'SMTP verification skipped (blocked by major email provider)'
-        };
-        return NextResponse.json({
-          success: true,
-          stage: 'mx_record',
-          message: `Email domain (${domain}) has valid MX records. SMTP verification blocked by provider (common for major email providers).`,
-          validationResults
-        });
-      }
-      
-      validationResults.smtp = {
-        passed: false,
-        message: 'SMTP server connection failed or rejected the request'
-      };
-      return NextResponse.json({ 
-        success: false, 
-        stage: 'smtp', 
-        message: 'SMTP server connection failed or rejected the request. This may be due to server restrictions or network issues.',
-        validationResults
-      }, { status: 400 });
-    }
+    // Email validation successful - syntax and MX records are valid
+    return NextResponse.json({
+      success: true,
+      stage: 'mx_record',
+      message: 'Email address is valid (syntax and domain checks passed).',
+      validationResults
+    });
   } catch (dnsError) {
     validationResults.mxRecord = {
       passed: false,
