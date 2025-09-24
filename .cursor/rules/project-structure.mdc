@@ -1,0 +1,111 @@
+---
+description: Project directory structure and important files for the email-check Next.js application
+globs: **/*
+alwaysApply: true
+---
+
+# Project Structure Guide
+
+This document outlines the directory structure and important files for the email-check Next.js application.
+
+## Root Directory Structure
+
+```
+email-check/
+├── .cursor/                    # Cursor IDE configuration
+│   └── rules/                 # Cursor rules and guidelines
+├── .git/                      # Git version control
+├── app/                       # Next.js App Router directory
+├── components/                # Reusable React components
+├── lib/                       # Utility functions and shared code
+├── public/                    # Static assets
+├── node_modules/              # Dependencies (auto-generated)
+├── .gitignore                 # Git ignore patterns
+├── components.json            # shadcn/ui configuration
+├── eslint.config.mjs          # ESLint configuration
+├── next-env.d.ts             # Next.js TypeScript definitions
+├── next.config.ts            # Next.js configuration
+├── package.json              # Project dependencies and scripts
+├── package-lock.json         # Dependency lock file
+├── postcss.config.mjs        # PostCSS configuration
+├── Procfile                  # Heroku deployment configuration
+├── README.md                 # Project documentation
+└── tsconfig.json             # TypeScript configuration
+```
+
+## Key Directories
+
+### `/app/` - Next.js App Router
+- **Purpose**: Contains the main application pages and layouts
+- **Files**:
+  - `layout.tsx` - Root layout component
+  - `page.tsx` - Home page component
+  - `globals.css` - Global styles and Tailwind CSS imports
+  - `favicon.ico` - Site favicon
+
+### `/components/` - React Components
+- **Purpose**: Reusable UI components
+- **Structure**:
+  - `ui/` - shadcn/ui component library
+    - `badge.tsx` - Badge component
+    - `button.tsx` - Button component
+    - `card.tsx` - Card component
+    - `input.tsx` - Input component
+
+### `/lib/` - Utility Functions
+- **Purpose**: Shared utility functions and configurations
+- **Files**:
+  - `utils.ts` - Common utility functions (likely includes cn() for class merging)
+
+### `/public/` - Static Assets
+- **Purpose**: Static files served directly by Next.js
+- **Files**:
+  - `file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg` - Icon assets
+
+## Configuration Files
+
+### `package.json`
+- **Project**: email-validator-app
+- **Framework**: Next.js 15.5.3 with React 19.1.0
+- **Styling**: Tailwind CSS v4
+- **UI Library**: shadcn/ui with Radix UI primitives
+- **Scripts**:
+  - `dev` - Development server with Turbopack
+  - `build` - Production build with Turbopack
+  - `start` - Production server
+  - `lint` - ESLint checking
+
+### `tsconfig.json`
+- **Target**: ES2017
+- **Module Resolution**: bundler
+- **Path Aliases**: `@/*` maps to project root
+- **Includes**: TypeScript files and Next.js types
+
+### `components.json`
+- **UI Library**: shadcn/ui with "new-york" style
+- **Features**: RSC support, TypeScript, CSS variables
+- **Aliases**:
+  - `@/components` - Components directory
+  - `@/lib/utils` - Utility functions
+  - `@/components/ui` - UI components
+  - `@/lib` - Library functions
+  - `@/hooks` - Custom hooks
+
+## Important Notes
+
+1. **Next.js App Router**: This project uses the modern App Router (not Pages Router)
+2. **TypeScript**: Full TypeScript support with strict mode enabled
+3. **Tailwind CSS v4**: Uses the latest Tailwind CSS version
+4. **shadcn/ui**: Modern component library with Radix UI primitives
+5. **Turbopack**: Uses Next.js's new bundler for faster development
+6. **Path Aliases**: Use `@/` prefix for imports from project root
+7. **Component Organization**: UI components are in `/components/ui/` following shadcn/ui conventions
+
+## Development Guidelines
+
+- Place new pages in the `/app/` directory
+- Create reusable components in `/components/`
+- Use shadcn/ui components from `/components/ui/`
+- Add utility functions to `/lib/utils.ts`
+- Follow the established path alias conventions
+- Use TypeScript for all new files
